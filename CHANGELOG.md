@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.0.4](https://github.com/UNIS-Svalbard-Weather-Information/swi-elevationapi/compare/0.0.3...0.0.4) (2026-09-07)
+
+
+### Bug Fixes
+
+* Enable semantic commits in renovate.json ([710e583](https://github.com/UNIS-Svalbard-Weather-Information/swi-elevationapi/commit/710e58349adbc4689ae60955e375c57811c70338))
+
 ## [0.0.3](https://github.com/UNIS-Svalbard-Weather-Information/swi-elevationapi/compare/0.0.2...0.0.3) (2026-08-29)
 
 
