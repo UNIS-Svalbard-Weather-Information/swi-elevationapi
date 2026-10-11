@@ -1,0 +1,29 @@
+# Local development. `docker compose up` prepares the DTM once (pre_start), then serves it.
+#   Smaller/faster data while developing:
+#     OTD_URL_SVALBARD=https://public.data.npolar.no/kartdata/S0_Terrengmodell/Mosaikk/NP_S0_DTM50.zip docker compose up
+#   Rebuild the data on demand:
+#     docker compose run --rm --no-deps --entrypoint /opt/prepare-data.sh elevation_api
+#   API: http://localhost:5000/v1/svalbard?locations=78.2232,15.6261   (legacy: /api/v1/lookup)
+services:
+  elevation_api:
+    build: .
+    ports:
+      - "5000:5000"
+    environment:
+      OTD_URL_SVALBARD: ${OTD_URL_SVALBARD:-}
+      OTD_SOURCE_FILE_SVALBARD: ${OTD_SOURCE_FILE_SVALBARD:-}
+      FORCE_REPREPARE: ${FORCE_REPREPARE:-0}
+    volumes:
+      - elevation_data:/data
+    pre_start:
+      - command: ["/opt/prepare-data.sh"]
+        per_replica: false
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sSf 'http://127.0.0.1:5000/v1/svalbard?locations=78.22,15.62' >/dev/null"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+
+volumes:
+  elevation_data:

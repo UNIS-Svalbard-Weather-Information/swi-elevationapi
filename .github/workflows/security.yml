@@ -18,6 +18,6 @@ jobs:
     uses: UNIS-Svalbard-Weather-Information/swi-shared-workflows/.github/workflows/security.yml@main
     with:
       shared-ref: main
-      # The upstream base image (open-elevation, 2021, Ubuntu 20.04) cannot be patched; see
-      # the security note in README.md. Remove this line (or the repository) once OpenTopoData replaces this service.
+      # Kept in report-only mode while the first scans of the OpenTopoData image are reviewed.
+      # Remove this line to make the checks enforcing once they are clean.
       report-only: true
