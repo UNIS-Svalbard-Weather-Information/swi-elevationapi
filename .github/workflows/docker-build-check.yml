@@ -44,6 +44,12 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Install a Docker Compose with pre_start support
+        # The runner's preinstalled Compose rejects `pre_start`.
+        uses: docker/setup-compose-action@54042514f505b273907334ae2b9cdbb9a0213c1a # v2.4.0
+        with:
+          version: v5.5.1
+
       - name: Start the service
         env:
           OTD_URL_SVALBARD: https://public.data.npolar.no/kartdata/S0_Terrengmodell/Mosaikk/NP_S0_DTM50.zip
