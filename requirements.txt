@@ -6,7 +6,6 @@ Flask-Caching==2.5.1
 geographiclib==2.1
 numpy==2.5.4
 polyline==2.0.4
-pylibmc==1.6.3
 pyproj==3.8.0
 PyYAML==6.0.3
 rasterio==1.5.2

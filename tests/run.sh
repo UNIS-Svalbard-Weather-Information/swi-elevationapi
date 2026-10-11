@@ -127,6 +127,13 @@ many="$(for _ in $(seq 101); do printf '78.2232,15.6261|'; done)78.2232,15.6261"
 check "more than 100 locations is rejected" test "$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:5000/v1/svalbard?locations=$many")" = "400"
 check "no CORS header is sent (the proxy owns CORS)" test -z "$(curl -s -D - -o /dev/null -H 'Origin: https://example.com' "http://127.0.0.1:5000/v1/svalbard?locations=$LOC" | grep -i '^access-control-allow-origin')"
 
+# uwsgi used to kill and respawn a worker after one or two requests (address space limit).
+for _ in $(seq 60); do curl -s -o /dev/null "http://127.0.0.1:5000/v1/svalbard?locations=$LOC"; done
+sleep 1
+check "workers are not recycled by requests" test "$(grep -c 'Seeya' "$work/api.log")" -eq 0
+check "no memcached/pylibmc errors in the log" test "$(grep -c -E 'pylibmc|PyMapping_HasKeyString' "$work/api.log")" -eq 0
+check "no tracebacks in the log" test "$(grep -c 'Traceback' "$work/api.log")" -eq 0
+
 echo
 echo "$pass passed, $fail failed"
 exit "$fail"

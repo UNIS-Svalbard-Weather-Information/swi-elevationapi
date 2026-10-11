@@ -12,7 +12,7 @@ ADD https://github.com/ajnisbet/opentopodata.git#${OTD_REF} /
 
 FROM ${PYTHON_IMAGE} AS builder
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends gcc libc6-dev libmemcached-dev zlib1g-dev \
+    && apt-get install -y --no-install-recommends gcc libc6-dev zlib1g-dev \
     && rm -rf /var/lib/apt/lists/*
 COPY requirements.txt /requirements.txt
 RUN pip wheel --no-cache-dir --wheel-dir=/wheels -r /requirements.txt
@@ -20,7 +20,7 @@ RUN pip wheel --no-cache-dir --wheel-dir=/wheels -r /requirements.txt
 FROM ${PYTHON_IMAGE}
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
-        ca-certificates curl gdal-bin inotify-tools jq libmemcached11t64 memcached nginx supervisor unzip \
+        ca-certificates curl gdal-bin inotify-tools jq memcached nginx supervisor unzip \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /wheels /wheels
@@ -39,6 +39,15 @@ COPY --from=otd-source / /app/
 RUN grep -q 'f.index(xs, ys, op=_noop)' opentopodata/backend.py \
     && grep -q '^import rasterio' opentopodata/backend.py \
     && sed -i 's/f\.index(xs, ys, op=_noop)/rasterio.transform.rowcol(f.transform, xs, ys, op=_noop)/' opentopodata/backend.py
+
+# uwsgi recycles a worker once its address space passes `reload-on-as` (512 MB upstream). Current
+# numpy/rasterio/GDAL libraries are already above that at start-up, so every worker was killed
+# and respawned after one or two requests. Resident memory (`reload-on-rss`) stays limited.
+RUN grep -q '^reload-on-as' docker/uwsgi.ini && sed -i '/^reload-on-as/d' docker/uwsgi.ini
+
+# Open Topo Data's memcached only caches tile lookups for datasets made of many files; this
+# service has a single raster. Disabling it also avoids a pylibmc failure on Python 3.13+.
+ENV DISABLE_MEMCACHE=1
 
 # Service configuration: dataset list, nginx with the /api/ aliases, and the data preparation.
 RUN rm -f /etc/nginx/sites-enabled/default
