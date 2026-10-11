@@ -105,3 +105,14 @@ This project is licensed under the **GNU General Public License v2.0**. See the 
 ## Contact
 
 For questions or support, please contact the maintainers via GitHub issues.
+
+---
+
+## Security note
+
+This image is built `FROM openelevation/open-elevation`, whose latest build dates from **2021-07-30**
+(Ubuntu 20.04, Python 3.8, both out of standard support). The base is pinned by digest, but it
+cannot be patched in place: a vulnerability scan reports hundreds of HIGH findings for which Ubuntu
+no longer publishes free updates. The security workflow therefore runs in `report-only` mode for
+this repository. Until the service is rebuilt on a maintained base, keep it behind the reverse
+proxy and do not expose it directly.
