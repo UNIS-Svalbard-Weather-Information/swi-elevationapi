@@ -24,7 +24,11 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /wheels /wheels
-RUN pip install --no-cache-dir --no-index --find-links=/wheels /wheels/*.whl && rm -rf /wheels
+# pip is removed afterwards: nothing installs at runtime, and its vendored copies of msgpack,
+# urllib3 and others are what vulnerability scanners flag.
+RUN pip install --no-cache-dir --no-index --find-links=/wheels /wheels/*.whl \
+    && rm -rf /wheels \
+    && python -m pip uninstall -y pip
 
 WORKDIR /app
 COPY --from=otd-source / /app/
