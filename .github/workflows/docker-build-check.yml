@@ -38,6 +38,10 @@ jobs:
     # Runs the real flow with the 50 m model (about 100 MB) to keep the job short:
     # pre_start prepares the data, then both API paths are queried.
     runs-on: ubuntu-latest
+    env:
+      # Job-wide: every compose command must see the same url, or the fingerprint changes
+      # and the preparation (rightly) rebuilds with the 20 m model.
+      OTD_URL_SVALBARD: https://public.data.npolar.no/kartdata/S0_Terrengmodell/Mosaikk/NP_S0_DTM50.zip
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -51,8 +55,6 @@ jobs:
           version: v5.5.1
 
       - name: Start the service
-        env:
-          OTD_URL_SVALBARD: https://public.data.npolar.no/kartdata/S0_Terrengmodell/Mosaikk/NP_S0_DTM50.zip
         run: docker compose up -d --build --wait --wait-timeout 600
 
       - name: Query the native and the legacy path
