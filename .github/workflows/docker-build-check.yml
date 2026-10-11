@@ -16,8 +16,55 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Check that config.yaml and datasets.json list the same datasets
+        run: |
+          set -euo pipefail
+          from_config="$(sed -n 's/^- name: *//p' config.yaml | sort)"
+          from_manifest="$(jq -r '.datasets[].name' datasets.json | sort)"
+          diff <(echo "$from_config") <(echo "$from_manifest")
+
       - name: Build image (no push)
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
         with:
           context: .
           push: false
+          load: true
+          tags: swi-elevationapi:ci
+
+  smoke-test:
+    # Runs the real flow with the 50 m model (about 100 MB) to keep the job short:
+    # pre_start prepares the data, then both API paths are queried.
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Start the service
+        env:
+          OTD_URL_SVALBARD: https://public.data.npolar.no/kartdata/S0_Terrengmodell/Mosaikk/NP_S0_DTM50.zip
+        run: docker compose up -d --build --wait --wait-timeout 600
+
+      - name: Query the native and the legacy path
+        run: |
+          set -euo pipefail
+          for path in 'v1/svalbard' 'api/v1/svalbard' 'api/v1/lookup'; do
+            elevation="$(curl -sSf "http://localhost:5000/$path?locations=78.2232,15.6261" | jq '.results[0].elevation')"
+            echo "$path -> $elevation"
+            # Longyearbyen: land, a few tens of metres.
+            jq -en --argjson e "$elevation" '$e > 0 and $e < 200' >/dev/null
+          done
+          # Open sea has no elevation.
+          test "$(curl -sSf 'http://localhost:5000/v1/svalbard?locations=79.5,5.0' | jq '.results[0].elevation')" = "null"
+          # The legacy path is GET only.
+          test "$(curl -s -o /dev/null -w '%{http_code}' -X POST http://localhost:5000/api/v1/lookup)" = "405"
+
+      - name: Preparation is skipped on re-run
+        run: |
+          docker compose run --rm --no-deps --entrypoint /opt/prepare-data.sh elevation_api | tee /tmp/prepare.log
+          grep -q 'Skipping (up to date)' /tmp/prepare.log
+
+      - name: Logs
+        if: failure()
+        run: docker compose logs
