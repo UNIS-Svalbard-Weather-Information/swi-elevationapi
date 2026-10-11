@@ -1,0 +1,10 @@
+# Open Topo Data configuration. Every dataset here must also be listed in datasets.json
+# (the prepare-data.sh manifest), under the same name: /data/<name>/ is where it is written.
+max_locations_per_request: 100
+
+# CORS is handled by the reverse proxy (Traefik), not by this service.
+access_control_allow_origin: null
+
+datasets:
+- name: svalbard
+  path: /data/svalbard/

@@ -1,0 +1,17 @@
+{
+  "datasets": [
+    {
+      "name": "svalbard",
+      "url": "https://public.data.npolar.no/kartdata/S0_Terrengmodell/Mosaikk/NP_S0_DTM20.zip",
+      "creation_options": [
+        "-co", "TILED=YES",
+        "-co", "BLOCKXSIZE=256",
+        "-co", "BLOCKYSIZE=256",
+        "-co", "COMPRESS=ZSTD",
+        "-co", "ZSTD_LEVEL=8",
+        "-co", "PREDICTOR=3",
+        "-co", "BIGTIFF=YES"
+      ]
+    }
+  ]
+}
