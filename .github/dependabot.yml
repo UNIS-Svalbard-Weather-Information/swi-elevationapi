@@ -9,3 +9,9 @@ updates:
     directory: /
     schedule:
       interval: weekly
+
+  # Bumps of requirements.txt are checked by the tests in docker-build-check.yml.
+  - package-ecosystem: pip
+    directory: /
+    schedule:
+      interval: weekly
