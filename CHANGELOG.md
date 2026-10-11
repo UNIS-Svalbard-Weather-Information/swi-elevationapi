@@ -1,5 +1,26 @@
 # Changelog
 
+## [1.0.0](https://github.com/UNIS-Svalbard-Weather-Information/swi-elevationapi/compare/0.0.4...1.0.0) (2026-10-11)
+
+
+### ⚠ BREAKING CHANGES
+
+* **elevation:** the container listens on 5000 instead of 8080 and stores its data in /data. The legacy lookup response now has location.lat/lng instead of latitude/longitude and POST is not supported.
+
+### Features
+
+* **elevation:** replace Open-Elevation with Open Topo Data ([c4638b4](https://github.com/UNIS-Svalbard-Weather-Information/swi-elevationapi/commit/c4638b49892dbaacea7434ed4daa23a220c28ece))
+
+
+### Bug Fixes
+
+* **security:** remove pip from the image and pin urllib3 2.8.0 ([f15cc59](https://github.com/UNIS-Svalbard-Weather-Information/swi-elevationapi/commit/f15cc59518da1026c82171d73aa55e127a0b0240))
+
+
+### Miscellaneous Chores
+
+* release 1.0.0 ([db8feb9](https://github.com/UNIS-Svalbard-Weather-Information/swi-elevationapi/commit/db8feb9fccc8be56ec6ecebc95018a2fc51a1881))
+
 ## [0.0.4](https://github.com/UNIS-Svalbard-Weather-Information/swi-elevationapi/compare/0.0.3...0.0.4) (2026-09-07)
 
 
