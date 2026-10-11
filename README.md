@@ -114,5 +114,5 @@ This image is built `FROM openelevation/open-elevation`, whose latest build date
 (Ubuntu 20.04, Python 3.8, both out of standard support). The base is pinned by digest, but it
 cannot be patched in place: a vulnerability scan reports hundreds of HIGH findings for which Ubuntu
 no longer publishes free updates. The security workflow therefore runs in `report-only` mode for
-this repository. Until the service is rebuilt on a maintained base, keep it behind the reverse
-proxy and do not expose it directly.
+this repository. This service is planned to be replaced by OpenTopoData, so the base image will not be rebuilt.
+Until the replacement ships, keep it behind the reverse proxy and do not expose it directly.

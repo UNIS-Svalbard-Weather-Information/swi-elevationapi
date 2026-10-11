@@ -19,5 +19,5 @@ jobs:
     with:
       shared-ref: main
       # The upstream base image (open-elevation, 2021, Ubuntu 20.04) cannot be patched; see
-      # the security note in README.md. Remove this line once the service is rebuilt.
+      # the security note in README.md. Remove this line (or the repository) once OpenTopoData replaces this service.
       report-only: true
