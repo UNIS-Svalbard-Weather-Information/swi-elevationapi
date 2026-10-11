@@ -2,90 +2,97 @@
 
 **A regional elevation API for Svalbard, based on the Norwegian Polar Institute's Digital Terrain Model (NP DTM).**
 
-This project builds on the work of [Jorl17/open-elevation](https://github.com/Jorl17/open-elevation), providing a ready-to-use API for Svalbard by automating the download, reprojection, and deployment of the NP DTM using the original Open-Elevation container for the Svalbard Weather Information platform.
+This service runs [Open Topo Data](https://www.opentopodata.org) on the NPI S0 terrain model (20 m, EPSG:25833). The container image bundles the server, GDAL and a preparation script that downloads the DTM and converts it into a compressed, internally tiled GeoTIFF (as recommended in [opentopodata#114](https://github.com/ajnisbet/opentopodata/issues/114)).
+
+It replaces the previous Open-Elevation based image.
 
 ---
 
-## API Documentation
+## API
 
-The API is simple and intuitive, with a single endpoint for elevation lookups. For full details, see the [Jorl17/open-elevation documentation](https://github.com/Jorl17/open-elevation/blob/master/docs/api.md).
+Open Topo Data API, dataset `svalbard`. See the [Open Topo Data API docs](https://www.opentopodata.org/api/) for all options (for example `interpolation`).
 
-### Endpoints
-
-#### `GET /api/v1/lookup`
-Returns elevation data for one or more `(latitude,longitude)` points.
-
-**Parameters:**
-- `locations`: List of locations, separated by `|` in `latitude,longitude` format.
-
-**Example Request:**
 ```bash
-curl 'https://your-api-url/api/v1/lookup?locations=78.2232,15.6261|78.2233,15.6262'
+curl 'https://your-api-url/v1/svalbard?locations=78.2232,15.6261|78.2233,15.6262'
 ```
 
-**Example Response:**
 ```json
 {
-   "results":[
-      {
-         "latitude":78.2232,
-         "longitude":15.6261,
-         "elevation":123
-      },
-      {
-         "latitude":78.2233,
-         "longitude":15.6262,
-         "elevation":125
-      }
-   ]
+  "results": [
+    { "dataset": "svalbard", "elevation": 25.49, "location": { "lat": 78.2232, "lng": 15.6261 } },
+    { "dataset": "svalbard", "elevation": 25.71, "location": { "lat": 78.2233, "lng": 15.6262 } }
+  ],
+  "status": "OK"
 }
 ```
 
-#### `POST /api/v1/lookup`
-Allows for larger requests via JSON payload.
+`elevation` is `null` outside the terrain model (sea). At most 100 locations per request.
 
-**Example Request:**
-```bash
-curl -X POST \
-  https://your-api-url/api/v1/lookup \
-  -H 'Accept: application/json' \
-  -H 'Content-Type: application/json' \
-  -d '{
-    "locations":[
-        {"latitude":78.2232, "longitude":15.6261},
-        {"latitude":78.2233, "longitude":15.6262}
-    ]
-}'
-```
+### Paths
 
-**Example Response:**
-```json
-{
-   "results":[
-      {
-         "latitude":78.2232,
-         "longitude":15.6261,
-         "elevation":123
-      },
-      {
-         "latitude":78.2233,
-         "longitude":15.6262,
-         "elevation":125
-      }
-   ]
-}
-```
+The container listens on port 5000 and serves every path both with and without an `/api` prefix, so it fits behind the `/oeapi/` -> `/api/` reverse proxy rewrite used in `swi-production-deployment`:
+
+| Path | |
+|---|---|
+| `/v1/svalbard`, `/api/v1/svalbard` | Open Topo Data lookup |
+| `/api/v1/lookup` | **Deprecated**, Open-Elevation compatible `GET` lookup, served by the `svalbard` dataset |
+
+The legacy path exists for the migration only. It returns the Open Topo Data body: `results[].elevation` is unchanged, but `latitude` / `longitude` became `location.lat` / `location.lng`, and `POST` is no longer supported (405). It will be removed once the frontend uses `/v1/svalbard`.
 
 ---
 
-## Usage
+## Data preparation
 
-This project simplifies deployment by providing a script to download the NP DTM, reproject it, and launch the API using the original Open-Elevation container.
+`/opt/prepare-data.sh` reads `datasets.json` and prepares each dataset in `/data/<name>/` (a volume). It is meant to run **once, before the server starts**, as a Compose [`pre_start`](https://docs.docker.com/reference/compose-file/services/#pre_start) step:
 
-To run the API:
-```bash
-docker run -p 80:8080 ghcr.io/unis-svalbard-weather-information/swi-elevationapi:latest
+```yaml
+services:
+  elevation_api:
+    image: ghcr.io/unis-svalbard-weather-information/swi-elevationapi:<version>
+    volumes:
+      - elevation_data:/data
+    pre_start:
+      - command: ["/opt/prepare-data.sh"]
+        per_replica: false   # once for the whole service, not per replica
 ```
+
+- A restart of the container does not run it again. It re-runs when the service is recreated (for example a new image tag).
+- `per_replica: false` plus an exclusive `flock` on `/data/.prepare.lock` guarantee a single preparation even with several replicas sharing the volume. A second runner waits, sees the finished data and skips.
+- Each dataset directory holds `dtm.tif` and a `.ready` file with the fingerprint (url, GDAL options, source file and the script's `PREP_VERSION`) and the upstream `ETag` / size / `Last-Modified`. The data is rebuilt when any of them changes, so a new upstream file, a changed option or a new `PREP_VERSION` is picked up automatically. If the upstream is unreachable, the existing data is kept.
+- The new data is built in `/data/.tmp` and swapped in with a rename, so a crash never leaves a half-written dataset.
+
+Run it by hand (a single step: `download` or `prepare`; `FORCE_REPREPARE=1` forces a rebuild, `PRUNE=1` removes datasets that are no longer in the manifest):
+
+```bash
+docker compose run --rm --no-deps --entrypoint /opt/prepare-data.sh elevation_api
+```
+
+(On Windows Git Bash prefix the command with `MSYS_NO_PATHCONV=1`.)
+
+### Adding or changing a dataset
+
+1. Add an entry to `datasets.json` (`name`, `url`, `creation_options`, optional `source_file` when the archive has several rasters).
+2. Add the same `name` to `config.yaml` with `path: /data/<name>/`.
+3. Release. The next deployment prepares only the new dataset.
+
+For development a different archive can be used with `OTD_URL_<NAME>` (and `OTD_SOURCE_FILE_<NAME>`), for example the 50 m model:
+
+```bash
+OTD_URL_SVALBARD=https://public.data.npolar.no/kartdata/S0_Terrengmodell/Mosaikk/NP_S0_DTM50.zip docker compose up --build
+```
+
+The DTM is kept in its native CRS; Open Topo Data reprojects the query points.
+
+---
+
+## Local development
+
+```bash
+docker compose up --build        # prepares the data on first run (about 600 MB download), then serves :5000
+curl 'http://localhost:5000/v1/svalbard?locations=78.2232,15.6261'
+```
+
+The image builds Open Topo Data from source at the release pinned in the `Dockerfile` (`OTD_REF`), because the project publishes no image.
 
 ---
 
@@ -97,22 +104,11 @@ This project is licensed under the **GNU General Public License v2.0**. See the 
 
 ## Acknowledgments
 
-- This project is based on [Jorl17/open-elevation](https://github.com/Jorl17/open-elevation).
-- Elevation data provided by the Norwegian Polar Institute.
+- [Open Topo Data](https://github.com/ajnisbet/opentopodata) (MIT).
+- Elevation data: [Terrengmodell Svalbard (S0 Terrengmodell)](https://data.npolar.no/dataset/dce53a47-c726-4845-85c3-a65b46fe2fea), Norwegian Polar Institute, CC BY 4.0.
 
 ---
 
 ## Contact
 
 For questions or support, please contact the maintainers via GitHub issues.
-
----
-
-## Security note
-
-This image is built `FROM openelevation/open-elevation`, whose latest build dates from **2021-07-30**
-(Ubuntu 20.04, Python 3.8, both out of standard support). The base is pinned by digest, but it
-cannot be patched in place: a vulnerability scan reports hundreds of HIGH findings for which Ubuntu
-no longer publishes free updates. The security workflow therefore runs in `report-only` mode for
-this repository. This service is planned to be replaced by OpenTopoData, so the base image will not be rebuilt.
-Until the replacement ships, keep it behind the reverse proxy and do not expose it directly.
