@@ -31,6 +31,9 @@ jobs:
           load: true
           tags: swi-elevationapi:ci
 
+      - name: Run the tests (preparation and API, synthetic DTM, no network)
+        run: docker run --rm --entrypoint bash -v "$PWD/tests:/tests:ro" swi-elevationapi:ci /tests/run.sh
+
   smoke-test:
     # Runs the real flow with the 50 m model (about 100 MB) to keep the job short:
     # pre_start prepares the data, then both API paths are queried.

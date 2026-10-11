@@ -92,7 +92,21 @@ docker compose up --build        # prepares the data on first run (about 600 MB 
 curl 'http://localhost:5000/v1/svalbard?locations=78.2232,15.6261'
 ```
 
-The image builds Open Topo Data from source at the release pinned in the `Dockerfile` (`OTD_REF`), because the project publishes no image.
+The image builds Open Topo Data from source at the release pinned in the `Dockerfile` (`OTD_REF`), because the project publishes no image. It runs on a current Python (see the `Dockerfile`) with the dependencies in `requirements.txt`; upstream's own pins only support Python 3.11. Open Topo Data 1.9.0 is not compatible with rasterio 1.4+ as is, so the `Dockerfile` patches the one affected line and fails the build when that line changes upstream.
+
+### Tests
+
+```bash
+docker build -t swi-elevationapi:test .
+docker run --rm --entrypoint bash -v "$PWD/tests:/tests:ro" swi-elevationapi:test /tests/run.sh
+```
+
+(On Windows Git Bash prefix `docker run` with `MSYS_NO_PATHCONV=1`.) `tests/run.sh` builds a tiny synthetic DTM, serves it from localhost and checks, with no network and in about a minute:
+
+- the preparation: output format (256x256 tiles, ZSTD, EPSG:25833), skipping when up to date, rebuilding when the upstream file, the url or `FORCE_REPREPARE` changes, a single download with two concurrent runs, corrupt or ambiguous archives, and keeping the data when the upstream is unreachable;
+- the API: `/v1/svalbard`, `/api/v1/svalbard` and the legacy `/api/v1/lookup` return the elevation, `null` outside the model, a 405 for the legacy `POST`, a 400 above 100 locations, and no CORS header.
+
+CI runs them on every pull request, followed by a smoke test with the real 50 m model.
 
 ---
 
