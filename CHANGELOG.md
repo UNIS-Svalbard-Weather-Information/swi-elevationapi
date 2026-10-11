@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.1](https://github.com/UNIS-Svalbard-Weather-Information/swi-elevationapi/compare/1.0.0...1.0.1) (2026-10-11)
+
+
+### Bug Fixes
+
+* **docker:** stop uwsgi recycling workers after every request and drop the pylibmc noise ([05e7313](https://github.com/UNIS-Svalbard-Weather-Information/swi-elevationapi/commit/05e73137ec531916e2e2369ddbfa33348eaf43d4))
+
 ## [1.0.0](https://github.com/UNIS-Svalbard-Weather-Information/swi-elevationapi/compare/0.0.4...1.0.0) (2026-10-11)
 
 
